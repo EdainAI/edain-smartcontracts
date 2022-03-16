@@ -27,7 +27,6 @@ contract EDAINToken is
     bytes32 public constant SNAPSHOT_ROLE = keccak256("SNAPSHOT_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant GRANTER_ROLE = keccak256("GRANT_ROLE");
 
     /**
      * @notice Init function for the EDAIN token
@@ -37,42 +36,41 @@ contract EDAINToken is
      * @notice Has a fixed total supply capped at 470.000.000 EAI
      * @notice ERC20 token with pausable function token transfers/minting/burning.
      */
-    function initialize() public initializer {
+    function initialize(uint256 initialMint) public initializer {
         __ERC20_init("EDAIN", "EAI");
         __ERC20Burnable_init();
         __ERC20Snapshot_init();
         __AccessControl_init();
         __Pausable_init();
         __EDAINStaking_init();
-        __ERC20Capped_init(470000000 * 10**decimals());
+        __ERC20Capped_init(47e7 * 10**decimals());
 
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(SNAPSHOT_ROLE, msg.sender);
         _setupRole(PAUSER_ROLE, msg.sender);
         _setupRole(MINTER_ROLE, msg.sender);
-        _setupRole(GRANTER_ROLE, msg.sender);
 
-        _mint(msg.sender, 400000000 * 10**decimals());
+        _mint(msg.sender, initialMint * 10**decimals());
     }
 
     /**
      * @notice Method to create a snapshop of the balances and supply
      */
-    function snapshot() public onlyRole(SNAPSHOT_ROLE) {
+    function snapshot() external onlyRole(SNAPSHOT_ROLE) {
         _snapshot();
     }
 
     /**
      * @notice Method to pause the transfer of token, minting and burning in case of emergency
      */
-    function pause() public onlyRole(PAUSER_ROLE) {
+    function pause() external onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
     /**
      * @notice Method to unpause the transfer of token, minting and burning in case of emergency
      */
-    function unpause() public onlyRole(PAUSER_ROLE) {
+    function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 
@@ -81,7 +79,7 @@ contract EDAINToken is
      * @param to The address of the recipient
      * @param amount The amount to be minted
      */
-    function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
+    function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
         _mint(to, amount);
     }
 
@@ -123,17 +121,20 @@ contract EDAINToken is
 
     /**
      * @notice Public method to create stake by any token holders
-     * @param _amount The amount to create from stakes
+     * @param amount The amount to create from stakes
      */
-    function stake(uint256 _amount) public whenNotPaused {
-        require(msg.sender != address(0), "ERC20: Add stake from zero address");
+    function stake(uint256 amount) external {
         require(
-            _amount > balanceOf(msg.sender),
-            "ERC20: Balance of sender exceeds the amount to stake"
+            msg.sender != address(0x00),
+            "ERC20: Add stake from zero address"
+        );
+        require(
+            amount < balanceOf(msg.sender),
+            "ERC20: Balance of the sender is lower than the staked amount"
         );
 
-        _stake(_amount);
-        _burn(msg.sender, _amount);
+        _burn(msg.sender, amount);
+        _stake(amount);
     }
 
     /**
@@ -141,7 +142,7 @@ contract EDAINToken is
      * @param amount The amount to withdraw from stakes
      * @param stake_index the index of the stake
      */
-    function withdrawStake(uint256 amount, uint256 stake_index) public whenNotPaused {
+    function withdrawStake(uint256 amount, uint256 stake_index) external {
         uint256 amount_to_mint = _withdrawStake(amount, stake_index);
         // Return staked tokens to user
         _mint(msg.sender, amount_to_mint);

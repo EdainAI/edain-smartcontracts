@@ -36,7 +36,7 @@ contract EDAINStaking is Initializable, ERC20Upgradeable {
         Stake[] stakes;
     }
 
-    uint256 internal _maxInterestRate;
+    uint256 internal maxInterestRate;
 
     Stakeholder[] internal stakeholders;
 
@@ -57,7 +57,7 @@ contract EDAINStaking is Initializable, ERC20Upgradeable {
         stakeholders.push();
 
         // 10% anual interest rate
-        _maxInterestRate = uint256(10**17);
+        maxInterestRate = uint256(10**17);
     }
 
     /**
@@ -112,7 +112,6 @@ contract EDAINStaking is Initializable, ERC20Upgradeable {
         view
         returns (uint256)
     {
-  
         // Get the number of days since the stake is active
         uint256 _coinAge = (block.timestamp - _current_stake.timestamp).div(
             1 days
@@ -120,15 +119,18 @@ contract EDAINStaking is Initializable, ERC20Upgradeable {
         if (_coinAge <= 0) return 0;
 
         uint256 interest = _getAnnualInterest();
-        return (_coinAge * interest * _current_stake.amount).div(365 * 10**18);
+        uint256 currentReward = _coinAge * interest * _current_stake.amount;
+        uint256 yearlyReward = 365 * 10**18;
+
+        return currentReward / yearlyReward;
     }
 
     function _getAnnualInterest() internal view returns (uint256) {
-        return _maxInterestRate;
+        return maxInterestRate;
     }
 
     /**
-     * @notice withdrawStake takes in an amount and a index of the stake and will remove tokens from that stake
+     * @notice withdrawStake takes in an amount and an index of the stake and will remove tokens from that stake
      * Notice index of the stake is the users stake counter, starting at 0 for the first stake
      * Will return the amount to MINT into the acount
      * Will also calculateStakeReward and reset timer
@@ -173,7 +175,7 @@ contract EDAINStaking is Initializable, ERC20Upgradeable {
      * @return StakingSummary with total staked amount, stakeed amount and available rewards
      */
     function hasStake(address _staker)
-        public
+        external
         view
         returns (StakingSummary memory)
     {
@@ -188,7 +190,7 @@ contract EDAINStaking is Initializable, ERC20Upgradeable {
         for (uint256 s = 0; s < summary.stakes.length; s += 1) {
             uint256 availableReward = _calculateStakeReward(summary.stakes[s]);
             summary.stakes[s].claimable = availableReward;
-            totalStakeAmount = totalStakeAmount + summary.stakes[s].amount;
+            totalStakeAmount += summary.stakes[s].amount;
         }
         // Assign calculate amount to summary
         summary.total_amount = totalStakeAmount;
